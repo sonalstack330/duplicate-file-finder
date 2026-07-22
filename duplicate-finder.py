@@ -4,6 +4,8 @@ import argparse
 import hashlib
 from collections import defaultdict
 import shutil
+import csv
+from datetime import datetime
 
 def compute_file_hash(filepath, algo="md5", chunk_size=8192):
     """Return the content hash of a file, reading it in chunks."""
@@ -127,6 +129,43 @@ def recycle_duplicates(duplicates, recycle_dir="recyclebin"):
     print(f"\nTotal space moved to recyclebin: {format_size(total_moved)}")
     print(f"(Review '{recycle_dir}' and delete it manually once you're confident.)")
 
+def write_log(duplicates, root_dir, log_format="csv", log_dir="logs"):
+    """Write scan results to a timestamped .csv or .txt log file."""
+    os.makedirs(log_dir, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"scan_{timestamp}.{log_format}"
+    filepath = os.path.join(log_dir, filename)
+
+    if log_format == "csv":
+        with open(filepath, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Group", "Status", "FileSize", "Path"])   # header row
+
+            for group_num, (file_hash, paths) in enumerate(duplicates.items(), start=1):
+                size = os.path.getsize(paths[0])
+                for i, path in enumerate(paths):
+                    status = "KEEP" if i == 0 else "DUPLICATE"
+                    writer.writerow([group_num, status, format_size(size), path])
+
+    else:  # txt format
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(f"Duplicate File Scan Report\n")
+            f.write(f"Scanned folder: {root_dir}\n")
+            f.write(f"Date: {timestamp}\n")
+            f.write("=" * 60 + "\n\n")
+
+            for group_num, (file_hash, paths) in enumerate(duplicates.items(), start=1):
+                size = os.path.getsize(paths[0])
+                f.write(f"Group #{group_num} - {format_size(size)} each\n")
+                for i, path in enumerate(paths):
+                    tag = "[KEEP]" if i == 0 else "[DUPLICATE]"
+                    f.write(f"   {tag} {path}\n")
+                f.write("\n")
+
+    print(f"Log written to: {filepath}")
+    return filepath
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find and remove duplicate files in a directory.")
     parser.add_argument("directory", help="Folder to scan for duplicates")
@@ -138,6 +177,8 @@ if __name__ == "__main__":
                          help="Delete duplicates after showing the report")
     parser.add_argument("--recycle", action="store_true",
                          help="Move duplicates to a local 'recyclebin' folder instead of deleting")
+    parser.add_argument("--log", choices=["csv", "txt"], default=None,
+                        help="Save scan results to a log file (csv or txt)")
     args = parser.parse_args()
 
     if not os.path.isdir(args.directory):
@@ -151,6 +192,9 @@ if __name__ == "__main__":
         sys.exit(0)
 
     report(dupes)
+
+    if args.log:
+        write_log(dupes, args.directory, log_format=args.log)
 
     if args.delete:
         confirm = input("\nPermanently delete all duplicate files listed above? (yes/no): ")
