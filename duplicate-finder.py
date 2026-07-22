@@ -1,4 +1,6 @@
 import os
+import sys
+import argparse
 import hashlib
 from collections import defaultdict
 
@@ -81,15 +83,33 @@ def clean_duplicates(duplicates):
     print(f"\nTotal space freed: {format_size(total_deleted)}")
 
 if __name__ == "__main__":
-    dupes = find_duplicates(r"D:\PycharmProjects\duplicate-file-finder\test_folder_deletetest")
+    parser = argparse.ArgumentParser(description="Find and remove duplicate files in a directory.")
+    parser.add_argument("directory", help="Folder to scan for duplicates")
+    parser.add_argument("--hash", default="md5", choices=["md5", "sha1", "sha256"],
+                         help="Hashing algorithm to use (default: md5)")
+    parser.add_argument("--min-size", type=int, default=0,
+                         help="Ignore files smaller than this size in bytes")
+    parser.add_argument("--delete", action="store_true",
+                         help="Delete duplicates after showing the report")
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.directory):
+        print(f"Error: '{args.directory}' is not a valid directory.")
+        sys.exit(1)
+
+    dupes = find_duplicates(args.directory, algo=args.hash, min_size=args.min_size)
 
     if not dupes:
         print("No duplicate files found.")
-    else:
-        report(dupes)
+        sys.exit(0)
 
+    report(dupes)
+
+    if args.delete:
         confirm = input("\nDelete all duplicate files listed above? (yes/no): ")
         if confirm.strip().lower() == "yes":
             clean_duplicates(dupes)
         else:
             print("Cancelled — no files deleted.")
+    else:
+        print("\nRun again with --delete to remove these files.")
