@@ -5,8 +5,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from collections import defaultdict
 
-
-# ---------- Core logic (same as your CLI tool) ----------
+#Core logic
 
 def compute_file_hash(filepath, algo="md5", chunk_size=8192):
     hasher = hashlib.new(algo)
@@ -14,7 +13,6 @@ def compute_file_hash(filepath, algo="md5", chunk_size=8192):
         while chunk := f.read(chunk_size):
             hasher.update(chunk)
     return hasher.hexdigest()
-
 
 def find_duplicates(root_dir, algo="md5", min_size=0, progress_callback=None):
     size_map = defaultdict(list)
@@ -41,7 +39,6 @@ def find_duplicates(root_dir, algo="md5", min_size=0, progress_callback=None):
 
     return {h: paths for h, paths in hash_map.items() if len(paths) > 1}
 
-
 def format_size(num_bytes):
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if num_bytes < 1024:
@@ -49,8 +46,7 @@ def format_size(num_bytes):
         num_bytes /= 1024
     return f"{num_bytes:.1f} PB"
 
-
-# ---------- GUI application ----------
+#GUI application
 
 class DuplicateFinderGUI:
     def __init__(self, root):
@@ -119,6 +115,16 @@ class DuplicateFinderGUI:
         if not self.duplicates:
             self.status_label.config(text="No duplicates found.")
             return
+
+        # Build a list of (wasted_space, file_hash, paths) so we can sort by wasted space
+        groups_with_waste = []
+        for file_hash, paths in self.duplicates.items():
+            size = os.path.getsize(paths[0])
+            wasted = size * (len(paths) - 1)
+            groups_with_waste.append((wasted, file_hash, paths))
+
+        # Sort biggest wasted space first
+        groups_with_waste.sort(key=lambda x: x[0], reverse=True)
 
         total_wasted = 0
         for group_num, (file_hash, paths) in enumerate(self.duplicates.items(), start=1):
