@@ -4,7 +4,6 @@ import argparse
 import hashlib
 from collections import defaultdict
 
-
 def compute_file_hash(filepath, algo="md5", chunk_size=8192):
     """Return the content hash of a file, reading it in chunks."""
     hasher = hashlib.new(algo)
@@ -13,12 +12,12 @@ def compute_file_hash(filepath, algo="md5", chunk_size=8192):
             hasher.update(chunk)
     return hasher.hexdigest()
 
-
 def find_duplicates(root_dir, algo="md5", min_size=0):
     """Find duplicate files by grouping by size first, then hashing only likely matches."""
     size_map = defaultdict(list)
 
     # Step 1: group files by size (cheap — no reading file contents)
+    scanned_count = 0   # 👈 this was missing — must be initialized BEFORE the loop
     for dirpath, dirnames, filenames in os.walk(root_dir):
         for name in filenames:
             filepath = os.path.join(dirpath, name)
@@ -29,23 +28,40 @@ def find_duplicates(root_dir, algo="md5", min_size=0):
             if size >= min_size:
                 size_map[size].append(filepath)
 
+            scanned_count += 1
+            if scanned_count % 100 == 0:
+                sys.stdout.write(f"\rScanning... {scanned_count} files found")
+                sys.stdout.flush()
+
+    sys.stdout.write(f"\rScanning complete — {scanned_count} files found.\n")   # 👈 outside both for-loops now
+
     # Step 2: only hash files that share a size with another file
     hash_map = defaultdict(list)
     candidates = [f for files in size_map.values() if len(files) > 1 for f in files]
+    total_candidates = len(candidates)   # 👈 this was missing
 
-    for filepath in candidates:
+    print(f"Hashing {total_candidates} candidate files...")   # 👈 this was missing
+
+    for i, filepath in enumerate(candidates, start=1):   # 👈 needs enumerate() to give you `i`
         file_hash = compute_file_hash(filepath, algo)
         hash_map[file_hash].append(filepath)
 
-    return {h: paths for h, paths in hash_map.items() if len(paths) > 1}  #at function level, after the loop
+        if i % 10 == 0 or i == total_candidates:
+            sys.stdout.write(f"\rHashing... {i}/{total_candidates}")
+            sys.stdout.flush()
+
+    if total_candidates > 0:   # 👈 outside the for-loop now, runs once after hashing finishes
+        sys.stdout.write("\n")
+
+    return {h: paths for h, paths in hash_map.items() if len(paths) > 1}
 
 def format_size(num_bytes):
     """Convert raw byte count into human-readable string"""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if num_bytes < 1024:
-            return f"{num_bytes} {unit}"
+            return f"{num_bytes:.1f} {unit}" # :.1f rounds to 1 decimal place
         num_bytes /= 1024
-    return f"{num_bytes} PB"
+    return f"{num_bytes:.1f} PB"
 
 def report(duplicates):
     """Print a report of duplicate files and total wasted space"""
