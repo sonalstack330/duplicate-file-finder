@@ -37,12 +37,37 @@ def find_duplicates(root_dir, algo="md5", min_size=0):
 
     return {h: paths for h, paths in hash_map.items() if len(paths) > 1}  #at function level, after the loop
 
+def format_size(num_bytes):
+    """Convert raw byte count into human-readable string"""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if num_bytes < 1024:
+            return f"{num_bytes} {unit}"
+        num_bytes /= 1024
+    return f"{num_bytes} PB"
+
+def report(duplicates):
+    """Print a report of duplicate files and total wasted space"""
+    total_wasted = 0
+    group_num = 1
+
+    for file_hash, paths in duplicates.items():
+        size = os.path.getsize(paths[0])
+        wasted = size * (len(paths) - 1)
+        total_wasted += wasted
+
+        print(f"Group #{group_num} - {format_size(size)} each")
+        for i, path in enumerate(paths):
+            tag = "[KEEP]" if i == 0 else "DUPLICATE"
+            print(f" {tag} {path}")
+        print()
+        group_num += 1
+
+    print(f"Total space wasted by duplicates: {format_size(total_wasted)}")
 
 if __name__ == "__main__":   # at column 0, top-level — not inside the function
     dupes = find_duplicates(r"D:\PycharmProjects\duplicate-file-finder\test_folder")
 
-    for h, paths in dupes.items():
-        print(h, "->", paths)
-
     if not dupes:
-        print("No duplicates found (all files below min_size were excluded)")
+        print("No duplicate files found.")
+    else:
+        report(dupes)
