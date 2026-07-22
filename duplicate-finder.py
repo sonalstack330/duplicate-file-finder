@@ -64,10 +64,32 @@ def report(duplicates):
 
     print(f"Total space wasted by duplicates: {format_size(total_wasted)}")
 
-if __name__ == "__main__":   # at column 0, top-level — not inside the function
-    dupes = find_duplicates(r"D:\PycharmProjects\duplicate-file-finder\test_folder")
+def clean_duplicates(duplicates):
+    """Delete all duplicate files in each group, keeping only the first one."""
+    total_deleted = 0
+
+    for file_hash, paths in duplicates.items():
+        size = os.path.getsize(paths[0])
+        for path in paths[1:]:
+            try:
+                os.remove(path)
+                total_deleted += size
+                print(f"Deleted {path}")
+            except OSError as e:
+                print(f"Error deleting {path}: {e}")
+
+    print(f"\nTotal space freed: {format_size(total_deleted)}")
+
+if __name__ == "__main__":
+    dupes = find_duplicates(r"D:\PycharmProjects\duplicate-file-finder\test_folder_deletetest")
 
     if not dupes:
         print("No duplicate files found.")
     else:
         report(dupes)
+
+        confirm = input("\nDelete all duplicate files listed above? (yes/no): ")
+        if confirm.strip().lower() == "yes":
+            clean_duplicates(dupes)
+        else:
+            print("Cancelled — no files deleted.")
