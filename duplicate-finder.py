@@ -3,6 +3,7 @@ import sys
 import argparse
 import hashlib
 from collections import defaultdict
+import shutil
 
 def compute_file_hash(filepath, algo="md5", chunk_size=8192):
     """Return the content hash of a file, reading it in chunks."""
@@ -17,7 +18,7 @@ def find_duplicates(root_dir, algo="md5", min_size=0):
     size_map = defaultdict(list)
 
     # Step 1: group files by size (cheap — no reading file contents)
-    scanned_count = 0   # 👈 this was missing — must be initialized BEFORE the loop
+    scanned_count = 0   #  must be initialized BEFORE the loop
     for dirpath, dirnames, filenames in os.walk(root_dir):
         for name in filenames:
             filepath = os.path.join(dirpath, name)
@@ -33,16 +34,16 @@ def find_duplicates(root_dir, algo="md5", min_size=0):
                 sys.stdout.write(f"\rScanning... {scanned_count} files found")
                 sys.stdout.flush()
 
-    sys.stdout.write(f"\rScanning complete — {scanned_count} files found.\n")   # 👈 outside both for-loops now
+    sys.stdout.write(f"\rScanning complete — {scanned_count} files found.\n")   # outside both for-loops now
 
     # Step 2: only hash files that share a size with another file
     hash_map = defaultdict(list)
     candidates = [f for files in size_map.values() if len(files) > 1 for f in files]
-    total_candidates = len(candidates)   # 👈 this was missing
+    total_candidates = len(candidates)
 
-    print(f"Hashing {total_candidates} candidate files...")   # 👈 this was missing
+    print(f"Hashing {total_candidates} candidate files...")
 
-    for i, filepath in enumerate(candidates, start=1):   # 👈 needs enumerate() to give you `i`
+    for i, filepath in enumerate(candidates, start=1):   # needs enumerate() to give you `i`
         file_hash = compute_file_hash(filepath, algo)
         hash_map[file_hash].append(filepath)
 
@@ -50,7 +51,7 @@ def find_duplicates(root_dir, algo="md5", min_size=0):
             sys.stdout.write(f"\rHashing... {i}/{total_candidates}")
             sys.stdout.flush()
 
-    if total_candidates > 0:   # 👈 outside the for-loop now, runs once after hashing finishes
+    if total_candidates > 0:   # outside the for-loop now, runs once after hashing finishes
         sys.stdout.write("\n")
 
     return {h: paths for h, paths in hash_map.items() if len(paths) > 1}
@@ -98,6 +99,34 @@ def clean_duplicates(duplicates):
 
     print(f"\nTotal space freed: {format_size(total_deleted)}")
 
+def recycle_duplicates(duplicates, recycle_dir="recyclebin"):
+    """Move duplicate files into a local recyclebin folder instead of deleting them."""
+    os.makedirs(recycle_dir, exist_ok=True)
+
+    total_moved = 0
+
+    for file_hash, paths in duplicates.items():
+        size = os.path.getsize(paths[0])
+        for path in paths[1:]:
+            filename = os.path.basename(path)
+            destination = os.path.join(recycle_dir, filename)
+
+            counter = 1
+            while os.path.exists(destination):
+                name, ext = os.path.splitext(filename)
+                destination = os.path.join(recycle_dir, f"{name}_{counter}{ext}")
+                counter += 1
+
+            try:
+                shutil.move(path, destination)
+                total_moved += size
+                print(f"Moved to recyclebin: {path} -> {destination}")
+            except OSError as e:
+                print(f"Failed to move {path}: {e}")
+
+    print(f"\nTotal space moved to recyclebin: {format_size(total_moved)}")
+    print(f"(Review '{recycle_dir}' and delete it manually once you're confident.)")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find and remove duplicate files in a directory.")
     parser.add_argument("directory", help="Folder to scan for duplicates")
@@ -107,6 +136,8 @@ if __name__ == "__main__":
                          help="Ignore files smaller than this size in bytes")
     parser.add_argument("--delete", action="store_true",
                          help="Delete duplicates after showing the report")
+    parser.add_argument("--recycle", action="store_true",
+                         help="Move duplicates to a local 'recyclebin' folder instead of deleting")
     args = parser.parse_args()
 
     if not os.path.isdir(args.directory):
@@ -122,10 +153,19 @@ if __name__ == "__main__":
     report(dupes)
 
     if args.delete:
-        confirm = input("\nDelete all duplicate files listed above? (yes/no): ")
+        confirm = input("\nPermanently delete all duplicate files listed above? (yes/no): ")
         if confirm.strip().lower() == "yes":
             clean_duplicates(dupes)
         else:
             print("Cancelled — no files deleted.")
+
+    elif args.recycle:
+        confirm = input("\nMove all duplicate files listed above to 'recyclebin'? (yes/no): ")
+        if confirm.strip().lower() == "yes":
+            recycle_duplicates(dupes)
+        else:
+            print("Cancelled — no files moved.")
+
     else:
-        print("\nRun again with --delete to remove these files.")
+        print("\nRun again with --delete to permanently remove these files,")
+        print("or --recycle to move them to a 'recyclebin' folder instead.")
