@@ -79,6 +79,14 @@ class DuplicateFinderGUI:
         self.results_list.pack(fill="both", expand=True)
         scrollbar.config(command=self.results_list.yview)
 
+        # Detail panel: shows full path of whatever is clicked
+        self.detail_label = tk.Label(self.root, text="Click a file to see its full path here.",
+                                     anchor="w", wraplength=730, justify="left",
+                                     bg="#f0f0f0", relief="sunken", padx=5, pady=3)
+        self.detail_label.pack(fill="x", padx=10, pady=(0, 5))
+
+        self.results_list.bind("<<ListboxSelect>>", self.show_full_path)
+
         # --- Bottom: status + action buttons ---
         bottom_frame = tk.Frame(self.root)
         bottom_frame.pack(fill="x", padx=10, pady=(0, 10))
@@ -127,22 +135,36 @@ class DuplicateFinderGUI:
         groups_with_waste.sort(key=lambda x: x[0], reverse=True)
 
         total_wasted = 0
-        for group_num, (file_hash, paths) in enumerate(self.duplicates.items(), start=1):
+        for group_num, (wasted, file_hash, paths) in enumerate(groups_with_waste, start=1):
             size = os.path.getsize(paths[0])
-            wasted = size * (len(paths) - 1)
             total_wasted += wasted
 
             self.results_list.insert(tk.END, f"--- Group #{group_num} ({format_size(size)} each) ---")
             self.file_map.append(None)   # header row, not selectable/deletable
 
             for i, path in enumerate(paths):
+                filename = os.path.basename(path) # just the filename not the full path
                 tag = "[KEEP]" if i == 0 else "[DUPLICATE]"
-                self.results_list.insert(tk.END, f"   {tag} {path}")
-                self.file_map.append(path if i > 0 else None)   # only duplicates are actionable
+                self.results_list.insert(tk.END, f"   {tag} {filename}")  # show filename only
+                self.file_map.append(path if i > 0 else None)  # full path still stored here
 
         self.status_label.config(
             text=f"{len(self.duplicates)} duplicate groups found — {format_size(total_wasted)} wasted."
         )
+
+    def show_full_path(self, event):
+        """Show the full path of whatever row is currently selected, in the detail panel below the list."""
+        selected_indices = self.results_list.curselection()
+        if not selected_indices:
+            return
+
+        index = selected_indices[0]  # just show the first selected one if multiple are selected
+        path = self.file_map[index]
+
+        if path is None:
+            self.detail_label.config(text="(This is a group header — select a file row instead.)")
+        else:
+            self.detail_label.config(text=path)
 
     def get_selected_paths(self):
         """Return actual file paths for whatever rows the user has checked/selected."""
