@@ -149,7 +149,7 @@ class DuplicateFinderGUI:
                 self.file_map.append(path if i > 0 else None)  # full path still stored here
 
         self.status_label.config(
-            text=f"{len(self.duplicates)} duplicate groups found — {format_size(total_wasted)} wasted."
+            text=f"{len(self.duplicates)} duplicate groups • {format_size(total_wasted)} can be freed"
         )
 
     def show_full_path(self, event):
