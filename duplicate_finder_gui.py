@@ -1,50 +1,8 @@
 import os
-import hashlib
 import shutil
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from collections import defaultdict
-
-#Core logic
-
-def compute_file_hash(filepath, algo="md5", chunk_size=8192):
-    hasher = hashlib.new(algo)
-    with open(filepath, "rb") as f:
-        while chunk := f.read(chunk_size):
-            hasher.update(chunk)
-    return hasher.hexdigest()
-
-def find_duplicates(root_dir, algo="md5", min_size=0, progress_callback=None):
-    size_map = defaultdict(list)
-
-    for dirpath, dirnames, filenames in os.walk(root_dir):
-        for name in filenames:
-            filepath = os.path.join(dirpath, name)
-            try:
-                size = os.path.getsize(filepath)
-            except OSError:
-                continue
-            if size >= min_size:
-                size_map[size].append(filepath)
-
-    hash_map = defaultdict(list)
-    candidates = [f for files in size_map.values() if len(files) > 1 for f in files]
-    total = len(candidates)
-
-    for i, filepath in enumerate(candidates, start=1):
-        file_hash = compute_file_hash(filepath, algo)
-        hash_map[file_hash].append(filepath)
-        if progress_callback:
-            progress_callback(i, total)   # tell the GUI how far along we are
-
-    return {h: paths for h, paths in hash_map.items() if len(paths) > 1}
-
-def format_size(num_bytes):
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if num_bytes < 1024:
-            return f"{num_bytes:.1f} {unit}"
-        num_bytes /= 1024
-    return f"{num_bytes:.1f} PB"
+from duplicate_finder import compute_file_hash, find_duplicates, format_size
 
 #GUI application
 

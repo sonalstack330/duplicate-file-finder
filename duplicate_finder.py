@@ -1,70 +1,61 @@
 import os
-import sys
 import argparse
 import hashlib
 from collections import defaultdict
 import shutil
 import csv
 from datetime import datetime
+import sys
+
+#core logic
 
 def compute_file_hash(filepath, algo="md5", chunk_size=8192):
-    """Return the content hash of a file, reading it in chunks."""
+    """Compute hash of a file using specified algorithm."""
     hasher = hashlib.new(algo)
-    with open(filepath, "rb") as f:
-        while chunk := f.read(chunk_size):
-            hasher.update(chunk)
-    return hasher.hexdigest()
+    try:
+        with open(filepath, "rb") as f:
+            while chunk := f.read(chunk_size):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+    except (OSError, IOError):
+        return None
 
-def find_duplicates(root_dir, algo="md5", min_size=0):
-    """Find duplicate files by grouping by size first, then hashing only likely matches."""
-    size_map = defaultdict(list)
+def find_duplicates(root_dir, algo="md5", min_size=0, progress_callback=None):
+    """Scan a directory tree and return a dict of {hash: [list of file paths]}."""
+    hash_map = defaultdict(list)
 
-    # Step 1: group files by size (cheap — no reading file contents)
-    scanned_count = 0   #  must be initialized BEFORE the loop
     for dirpath, dirnames, filenames in os.walk(root_dir):
-        for name in filenames:
-            filepath = os.path.join(dirpath, name)
+        for filename in filenames:
+            filepath = os.path.join(dirpath, filename)
+
+            # Skip symlinks and check file size
+            if os.path.islink(filepath):
+                continue
             try:
-                size = os.path.getsize(filepath)
+                if os.path.getsize(filepath) < min_size:
+                    continue
             except OSError:
                 continue
-            if size >= min_size:
-                size_map[size].append(filepath)
 
-            scanned_count += 1
-            if scanned_count % 100 == 0:
-                sys.stdout.write(f"\rScanning... {scanned_count} files found")
-                sys.stdout.flush()
+            # Compute hash
+            file_hash = compute_file_hash(filepath, algo=algo)
+            if file_hash:
+                hash_map[file_hash].append(filepath)
 
-    sys.stdout.write(f"\rScanning complete — {scanned_count} files found.\n")   # outside both for-loops now
+            # Call progress callback if provided (for GUI)
+            if progress_callback:
+                progress_callback(filepath)
 
-    # Step 2: only hash files that share a size with another file
-    hash_map = defaultdict(list)
-    candidates = [f for files in size_map.values() if len(files) > 1 for f in files]
-    total_candidates = len(candidates)
-
-    print(f"Hashing {total_candidates} candidate files...")
-
-    for i, filepath in enumerate(candidates, start=1):   # needs enumerate() to give you `i`
-        file_hash = compute_file_hash(filepath, algo)
-        hash_map[file_hash].append(filepath)
-
-        if i % 10 == 0 or i == total_candidates:
-            sys.stdout.write(f"\rHashing... {i}/{total_candidates}")
-            sys.stdout.flush()
-
-    if total_candidates > 0:   # outside the for-loop now, runs once after hashing finishes
-        sys.stdout.write("\n")
-
+    # Return only groups with duplicates (2+ files)
     return {h: paths for h, paths in hash_map.items() if len(paths) > 1}
 
 def format_size(num_bytes):
-    """Convert raw byte count into human-readable string"""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+    """Convert bytes to human-readable format (KB, MB, GB, etc.)."""
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
         if num_bytes < 1024:
-            return f"{num_bytes:.1f} {unit}" # :.1f rounds to 1 decimal place
+            return f"{num_bytes:.2f} {unit}"
         num_bytes /= 1024
-    return f"{num_bytes:.1f} PB"
+    return f"{num_bytes:.2f} PB"
 
 def report(duplicates):
     """Print a report of duplicate files and total wasted space"""
