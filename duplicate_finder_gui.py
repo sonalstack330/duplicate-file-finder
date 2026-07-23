@@ -1,8 +1,10 @@
+# noinspection PyTypeChecker,PyUnresolvedReference
 import os
 import shutil
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-from duplicate_finder import compute_file_hash, find_duplicates, format_size
+from tkinter import filedialog, messagebox
+
+from duplicate_finder import find_duplicates, format_size
 
 #GUI application
 
@@ -12,8 +14,15 @@ class DuplicateFinderGUI:
         self.root.title("Duplicate File Finder")
         self.root.geometry("750x550")
 
+        #Data storage
         self.duplicates = {}       # stores the last scan's results
         self.selected_dir = tk.StringVar()
+        self.file_map = []
+
+        #UI widgets (initialized to None, created in build_widgets
+        self.results_list = None
+        self.detail_label = None
+        self.status_label = None
 
         self.build_widgets()
 
@@ -52,7 +61,7 @@ class DuplicateFinderGUI:
         self.status_label = tk.Label(bottom_frame, text="No scan run yet.", anchor="w")
         self.status_label.pack(side="left")
 
-        tk.Button(bottom_frame, text="Move Selected to Recyclebin",
+        tk.Button(bottom_frame, text="Move Selected to RecycleBin",
                   command=self.recycle_selected, bg="#2196F3", fg="white").pack(side="right", padx=5)
         tk.Button(bottom_frame, text="Delete Selected Permanently",
                   command=self.delete_selected, bg="#f44336", fg="white").pack(side="right")
@@ -76,7 +85,7 @@ class DuplicateFinderGUI:
 
     def populate_results(self):
         self.results_list.delete(0, tk.END)   # clear old results
-        self.file_map = []   # parallel list: maps listbox row index -> actual file path
+        self.file_map = {}   # parallel list: maps listbox row index -> actual file path
 
         if not self.duplicates:
             self.status_label.config(text="No duplicates found.")
@@ -110,14 +119,14 @@ class DuplicateFinderGUI:
             text=f"{len(self.duplicates)} duplicate groups • {format_size(total_wasted)} can be freed"
         )
 
-    def show_full_path(self, event):
+    def show_full_path(self, _event = None):
         """Show the full path of whatever row is currently selected, in the detail panel below the list."""
         selected_indices = self.results_list.curselection()
         if not selected_indices:
             return
 
         index = selected_indices[0]  # just show the first selected one if multiple are selected
-        path = self.file_map[index]
+        path = str(self.file_map[index]) if self.file_map[index] else None
 
         if path is None:
             self.detail_label.config(text="(This is a group header — select a file row instead.)")
@@ -127,7 +136,7 @@ class DuplicateFinderGUI:
     def get_selected_paths(self):
         """Return actual file paths for whatever rows the user has checked/selected."""
         selected_indices = self.results_list.curselection()
-        paths = [self.file_map[i] for i in selected_indices if self.file_map[i] is not None]
+        paths = [str(self.file_map[i]) for i in selected_indices if self.file_map[i] is not None]
         return paths
 
     def delete_selected(self):
@@ -143,14 +152,14 @@ class DuplicateFinderGUI:
         if not confirm:
             return
 
-        for path in paths:
+        for file_path in paths:  # Changed 'path' to 'file_path'
             try:
-                os.remove(path)
+                os.remove(file_path)
             except OSError as e:
-                messagebox.showwarning("Error", f"Could not delete {path}: {e}")
+                messagebox.showwarning("Error", f"Could not delete {file_path}: {e}")
 
         messagebox.showinfo("Done", f"Deleted {len(paths)} file(s).")
-        self.run_scan()   # re-scan to refresh the list
+        self.run_scan()
 
     def recycle_selected(self):
         paths = self.get_selected_paths()
@@ -158,11 +167,12 @@ class DuplicateFinderGUI:
             messagebox.showinfo("Nothing selected", "Select one or more duplicate files first.")
             return
 
-        recycle_dir = "recyclebin"
+        recycle_dir = "recycleBin"
         os.makedirs(recycle_dir, exist_ok=True)
 
         moved = 0
         for path in paths:
+            path = str(path)  # inside the loop
             filename = os.path.basename(path)
             destination = os.path.join(recycle_dir, filename)
             counter = 1
@@ -180,6 +190,6 @@ class DuplicateFinderGUI:
         self.run_scan()
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = DuplicateFinderGUI(root)
-    root.mainloop()
+    main_window = tk.Tk()
+    app = DuplicateFinderGUI(main_window)
+    main_window.mainloop()
