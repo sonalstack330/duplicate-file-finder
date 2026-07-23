@@ -75,7 +75,7 @@ class DuplicateFinderGUI:
         scrollbar = tk.Scrollbar(mid_frame)
         scrollbar.pack(side="right", fill="y")
 
-        self.results_list = tk.Listbox(mid_frame, selectmode="multiple", yscrollcommand=scrollbar.set)
+        self.results_list = tk.Listbox(mid_frame, selectmode="browse", yscrollcommand=scrollbar.set)
         self.results_list.pack(fill="both", expand=True)
         scrollbar.config(command=self.results_list.yview)
 
