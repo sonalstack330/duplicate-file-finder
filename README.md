@@ -50,6 +50,14 @@ logic.
 - `tkinter` — graphical desktop interface
 - `collections.defaultdict` — grouping files efficiently
 
+## Project Structure
+
+duplicate_finder.py # Core detection logic + CLI tool
+duplicate_finder_gui.py # Tkinter GUI, imports core logic from duplicate_finder.py
+
+No external dependencies — everything runs with a standard Python 3
+installation.
+
 
 
 
