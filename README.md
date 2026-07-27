@@ -148,11 +148,6 @@ Permanent deletion (`--delete`) is irreversible. The recycle bin mode
 be manually restored. Always review the report before confirming any
 cleanup action.
 
-## License
-
-MIT
-
-Want me to walk you through updating this in PyCharm and committing it, or do you have it from here?
 
 
 
