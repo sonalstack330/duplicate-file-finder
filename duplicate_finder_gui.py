@@ -1,6 +1,7 @@
 # noinspection PyTypeChecker,PyUnresolvedReference
 import os
 import shutil
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
@@ -78,14 +79,21 @@ class DuplicateFinderGUI:
             return
 
         self.status_label.config(text="Scanning...")
-        self.root.update_idletasks()   # force the label to redraw before the (blocking) scan starts
+        self.root.update_idletasks()
 
+        # Run the actual scan on a separate thread so the GUI stays responsive
+        thread = threading.Thread(target=self._scan_worker, args=(folder,))
+        thread.start()
+
+    def _scan_worker(self, folder):
+        """Runs in a background thread — does the actual scanning work."""
         self.duplicates = find_duplicates(folder)
-        self.populate_results()
+        # Tkinter isn't thread-safe, so we schedule the UI update back on the main thread
+        self.root.after(0, self.populate_results)
 
     def populate_results(self):
         self.results_list.delete(0, tk.END)   # clear old results
-        self.file_map = {}   # parallel list: maps listbox row index -> actual file path
+        self.file_map = []  # parallel list: maps listbox row index -> actual file path
 
         if not self.duplicates:
             self.status_label.config(text="No duplicates found.")
