@@ -127,6 +127,13 @@ python duplicate_finder_gui.py
 
 ![CLI showing result in the terminal](cli.png)
 
+## Example Output (GUI)
+
+![Running the project](run.png)
+![Browsing the folder](browse.png)
+![Scanning the file](scan.png)
+![Moving the file to recycle bin](move.png)
+
 ## How It Works
 
 1. Walks the target directory recursively, grouping files by size
