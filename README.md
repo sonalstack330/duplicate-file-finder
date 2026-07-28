@@ -125,21 +125,7 @@ python duplicate_finder_gui.py
 
 ## Example Output (CLI)
 
-Scanning complete — 466 files found.
-Hashing 287 candidate files...
-
-Group #1 - 110.6 MB each, 110.6 MB wasted
-[KEEP] OpenJDK25U-jdk_x64_windows_hotspot_25.0.3_9 (1).msi
-DUPLICATE OpenJDK25U-jdk_x64_windows_hotspot_25.0.3_9.msi
-
-Total space wasted by duplicates: 123.3 MB
-
-Move all duplicate files listed above to 'recyclebin'? (yes/no): yes
-Moved to recyclebin: OpenJDK25U-jdk_x64_windows_hotspot_25.0.3_9.msi -> recyclebin...
-Total space moved to recyclebin: 123.3 MB
-
-## Example Output (GUI)
-
+![CLI showing result in the terminal](cli.png)
 
 ## How It Works
 
