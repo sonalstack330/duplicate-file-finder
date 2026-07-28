@@ -1,15 +1,21 @@
 # Duplicate File Finder & Storage Cleanup Tool
 
-A Python command-line tool that scans directories for duplicate files using
-content hashing, reports how much storage is being wasted, and safely removes
-redundant copies freeing up disk space with a single command.
+A Python-based duplicate file detector with both a command-line interface
+and a graphical desktop app, built to find and safely clean up redundant
+files eating into storage space.
 
-Files are compared by actual content (via MD5/SHA1/SHA256 hashing), not just filename, so it catches duplicates even when they've been renamed or copied into different folders.
+Files are compared by actual content (via MD5/SHA1/SHA256 hashing), not just
+filename, so it catches duplicates even when they've been renamed or copied
+into different folders.
 
-The tool uses a two-phase detection strategy first grouping files by size, then only hashing files that share a size with another
-file to avoid unnecessarily hashing every single file in large directories, keeping scans fast even across tens of thousands of files.
+The tool uses a two-phase detection strategy — first grouping files by size,
+then only hashing files that share a size with another file — to avoid
+unnecessarily hashing every single file in large directories, keeping scans
+fast even across tens of thousands of files.
 
-Cleanup can be done two ways: permanently deleting duplicates, or moving them to a local recycle bin folder first, so nothing is lost if the tool ever flags something unexpectedly. Every scan can also be logged to a .csv or .txt file for a persistent record of what was found and cleaned.
+Cleanup can be done two ways: permanently deleting duplicates, or moving
+them to a local recycle bin folder first, so nothing is lost if the tool
+ever flags something unexpectedly.
 
 The command-line version (`duplicate_finder.py`) is built for automation and
 scripting — usable in scheduled jobs or piped into other tools. The GUI
@@ -31,6 +37,8 @@ logic.
   space, biggest first
 - **Two safe cleanup modes** — permanently delete, or move to a local
   `recyclebin` folder for easy recovery
+- **Background scanning (GUI)** — scans run on a separate thread so the
+  window stays responsive during large scans
 - **Scan logging** — save results to `.csv` or `.txt` for a record of every
   scan
 - **CLI tool** — built with `argparse`, ideal for scripting and automation
@@ -48,6 +56,7 @@ logic.
 - `shutil` — safely moving files to the recycle bin folder
 - `csv` / `datetime` — scan logging with timestamps
 - `tkinter` — graphical desktop interface
+- `threading` — keeps the GUI responsive during long scans
 - `collections.defaultdict` — grouping files efficiently
 
 ## Project Structure
@@ -112,7 +121,7 @@ python duplicate_finder_gui.py
 2. Click **Scan** — duplicate groups appear sorted by wasted space, biggest first
 3. Click any file to see its full path in the detail panel below the list
 4. Select a duplicate and choose **Move Selected to Recyclebin** (safe, reversible)
-   or **Delete Selected Permanently** (irreversible)
+   or **Delete Selected Permanently** (irreversible) use with caution
 
 ## Example Output (CLI)
 
@@ -129,6 +138,8 @@ Move all duplicate files listed above to 'recyclebin'? (yes/no): yes
 Moved to recyclebin: OpenJDK25U-jdk_x64_windows_hotspot_25.0.3_9.msi -> recyclebin...
 Total space moved to recyclebin: 123.3 MB
 
+## Example Output (GUI)
+
 
 ## How It Works
 
@@ -140,6 +151,23 @@ Total space moved to recyclebin: 123.3 MB
 5. One file per group is kept; the rest are flagged as redundant
 6. On confirmation, redundant files are deleted or moved to `recyclebin`, and
    space freed is reported
+
+## Recovering Files (GUI)
+
+If you used **"Move Selected to RecycleBin,"** deleted files are safely
+stored in the `recycleBin/` folder inside the project directory — not
+actually removed. To restore a file, manually move it back to its original
+location.
+
+**"Delete Selected Permanently" cannot be undone.** Files removed this way
+are not recoverable through this tool. Prefer "Move Selected to RecycleBin"
+unless you are certain you want to permanently delete a file.
+
+## Note on Logging
+
+CSV/TXT scan logging (`--log`) is currently available in the CLI tool only.
+The GUI is focused on interactive review and cleanup; for a saved audit
+trail of a scan, use `duplicate_finder.py` with `--log csv` or `--log txt`.
 
 ## Disclaimer
 
